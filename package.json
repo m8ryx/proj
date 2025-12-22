@@ -1,0 +1,24 @@
+{
+  "name": "proj",
+  "version": "1.0.0",
+  "description": "Project Directory Management CLI - Manage and navigate project directories with ease",
+  "type": "module",
+  "bin": {
+    "proj": "./proj.ts"
+  },
+  "scripts": {
+    "help": "bun run proj.ts --help",
+    "list": "bun run proj.ts list",
+    "test": "bun run proj.ts --version"
+  },
+  "keywords": [
+    "cli",
+    "project-management",
+    "directory-navigation",
+    "productivity",
+    "developer-tools"
+  ],
+  "author": "Daniel Miessler",
+  "license": "MIT",
+  "dependencies": {}
+}
