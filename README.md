@@ -612,6 +612,44 @@ fi
 tmux new-session -s "$PROJECT_NAME" -c "$PROJECT_PATH"
 ```
 
+### MCP Server (AI Integration)
+
+`proj` includes an MCP (Model Context Protocol) server that allows Claude and other LLMs to interact with your projects.
+
+**Setup:**
+
+Add to `~/.claude/claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "proj": {
+      "command": "bun",
+      "args": ["run", "/usr/lib/node_modules/proj/mcp-server.ts"]
+    }
+  }
+}
+```
+
+**Available Tools:**
+- `list_projects` - List and filter projects
+- `get_project` - Get project details
+- `update_project_state` - Change project state
+- `update_project_field` - Update project metadata
+- `get_project_stats` - View project statistics
+- `search_projects` - Search by name/description/category
+
+**Usage Examples:**
+
+```
+"Show me all active projects in the infrastructure category"
+"What are the next steps for the Daemon project?"
+"Mark the legacy-app as archived"
+"How many projects do I have by state?"
+```
+
+See [MCP.md](./MCP.md) for complete documentation.
+
 ---
 
 ## Best Practices
@@ -737,7 +775,10 @@ proj list --json | jq -r '.projects[].path' | xargs -I {} sh -c 'cd {} && git st
 - ✅ **Categories** - Organize projects by custom categories
 - ✅ **Descriptions** - Add descriptions to projects for better context
 - ✅ **Visibility** - Control project visibility (public/private/internal/custom)
+- ✅ **Repository URLs** - Track GitHub/GitLab repository links
+- ✅ **Next Steps** - Document next actions for each project
 - ✅ **Daemon Export** - Export projects in daemon format with filtering
+- ✅ **MCP Server** - AI integration for Claude and other LLMs
 - ✅ **Documentation Paths** - Set and navigate to project docs directories
 - ✅ **Project States** - Track active/paused/completed/archived projects
 

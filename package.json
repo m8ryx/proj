@@ -1,6 +1,6 @@
 {
   "name": "proj",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Project Directory Management CLI - Manage and navigate project directories with ease",
   "type": "module",
   "bin": {
@@ -9,16 +9,21 @@
   "scripts": {
     "help": "bun run proj.ts --help",
     "list": "bun run proj.ts list",
-    "test": "bun run proj.ts --version"
+    "test": "bun run proj.ts --version",
+    "mcp": "bun run mcp-server.ts"
   },
   "keywords": [
     "cli",
     "project-management",
     "directory-navigation",
     "productivity",
-    "developer-tools"
+    "developer-tools",
+    "mcp",
+    "model-context-protocol"
   ],
   "author": "Daniel Miessler",
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2"
+  }
 }
