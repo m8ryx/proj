@@ -618,14 +618,21 @@ tmux new-session -s "$PROJECT_NAME" -c "$PROJECT_PATH"
 
 **Setup:**
 
-Add to `~/.claude/claude.json`:
+Run this command to add the MCP server:
+
+```bash
+mcp add --transport stdio proj -- bun /usr/lib/node_modules/proj/mcp-server.ts
+```
+
+This will automatically configure the server in your `~/.claude.json`:
 
 ```json
 {
   "mcpServers": {
     "proj": {
       "command": "bun",
-      "args": ["run", "/usr/lib/node_modules/proj/mcp-server.ts"]
+      "args": ["/usr/lib/node_modules/proj/mcp-server.ts"],
+      "transport": "stdio"
     }
   }
 }
