@@ -1,8 +1,8 @@
 # proj - Project Directory Management CLI
 
-**Version:** 1.0.0
-**Author:** Daniel Miessler
-**Last Updated:** 2025-12-02
+**Version:** 1.1.0
+**Author:** Rick Rezinas
+**Last Updated:** 2026-01-11
 
 ---
 
@@ -42,7 +42,7 @@ echo 'export PATH="$HOME/bin/proj:$PATH"' >> ~/.bashrc  # or ~/.zshrc
 
 ### Shell Integration (Recommended)
 
-Add this function to your `.bashrc` or `.zshrc` for easier navigation:
+Add these functions to your `.bashrc` or `.zshrc` for easier navigation:
 
 ```bash
 # Quick project directory change
@@ -55,9 +55,20 @@ pd() {
     return 1
   fi
 }
+
+# Quick project docs directory change
+pdd() {
+  local path=$(proj docs "$1" 2>/dev/null)
+  if [ -n "$path" ]; then
+    cd "$path"
+  else
+    echo "Error: Project or docs not found" >&2
+    return 1
+  fi
+}
 ```
 
-Then use: `pd my-app` instead of `cd $(proj path my-app)`
+Then use: `pd my-app` or `pdd my-app` instead of `cd $(proj path my-app)`
 
 ---
 
@@ -160,6 +171,135 @@ A directory is considered a project if it contains any of:
 - `pyproject.toml` / `setup.py` (Python)
 - `composer.json` (PHP)
 
+#### `proj set-category <name> <category>`
+
+Set a category for a project (any custom value).
+
+```bash
+# Set category
+proj set-category my-app Technical
+proj set-category novel Creative
+proj set-category fitness Personal
+
+# Categories are flexible - use any value you want
+proj set-category work-project "Client Work"
+```
+
+#### `proj set-description <name> <description>`
+
+Set a description for a project (supports multi-word descriptions).
+
+```bash
+# Set description
+proj set-description my-app "A web application for task management"
+proj set-description blog "Personal blog about technology and coffee"
+
+# Description can be used in daemon export
+proj set-description cli-tool "CLI tool to help manage personal projects"
+```
+
+#### `proj set-visibility <name> <visibility>`
+
+Set visibility for a project (any custom value).
+
+```bash
+# Common visibility values
+proj set-visibility my-app public
+proj set-visibility work-project internal
+proj set-visibility personal-notes private
+
+# Use any custom value
+proj set-visibility prototype experimental
+proj set-visibility legacy archived
+```
+
+#### `proj set-docs <name> <docs-path>`
+
+Set or update documentation directory for a project.
+
+```bash
+# Set docs directory
+proj set-docs my-app ~/projects/my-app/docs
+proj set-docs website ~/projects/website/documentation
+```
+
+#### `proj docs <name>`
+
+Get the documentation path for a project.
+
+```bash
+# Change to docs directory
+cd $(proj docs my-app)
+
+# Or use with shell function
+pdd my-app
+```
+
+#### `proj export-daemon`
+
+Export projects in daemon format (grouped by category).
+
+```bash
+# Export all active projects
+proj export-daemon
+
+# Export only public projects
+proj export-daemon --visibility public
+
+# Export all projects (including completed/paused/archived)
+proj export-daemon --all
+
+# Save to file
+proj export-daemon --visibility public > ~/Projects/Daemon/public/sections/projects.md
+```
+
+**Output format:**
+```
+[PROJECTS]
+
+Technical:
+- A CLI tool to help manage personal projects
+- Personal API website serving as digital representative
+
+Creative:
+- Unspecified narrative RPG
+
+Personal:
+- Increase personal reach
+```
+
+#### `proj complete <name>`
+
+Mark a project as completed.
+
+```bash
+proj complete my-app
+```
+
+#### `proj pause <name>`
+
+Mark a project as paused.
+
+```bash
+proj pause side-project
+```
+
+#### `proj archive <name>`
+
+Mark a project as archived.
+
+```bash
+proj archive old-project
+```
+
+#### `proj reactivate <name>`
+
+Mark a project as active again.
+
+```bash
+proj reactivate my-app
+```
+
 ---
 
 ## Examples
@@ -181,6 +321,30 @@ cd $(proj path my-app)
 
 # View projects as JSON
 proj list --json
+```
+
+### Daemon Integration Workflow
+
+```bash
+# Set up your projects with metadata
+proj set-category my-app Technical
+proj set-description my-app "A CLI tool to help manage personal projects"
+proj set-visibility my-app public
+
+proj set-category novel Creative
+proj set-description novel "Unspecified narrative RPG"
+proj set-visibility novel public
+
+proj set-category fitness Personal
+proj set-description fitness "Increase personal reach"
+proj set-visibility fitness private
+
+# Export only public projects to daemon
+proj export-daemon --visibility public > ~/Projects/Daemon/public/sections/projects.md
+
+# Build and deploy daemon
+cd ~/Projects/Daemon
+make deploy
 ```
 
 ### Advanced Usage with jq
@@ -266,7 +430,12 @@ Projects are stored in: `~/.config/proj/projects.json`
       "path": "/home/user/projects/my-app",
       "added": "2025-12-02T10:30:00.000Z",
       "lastModified": "2025-12-02T15:45:00.000Z",
-      "size": 4096
+      "size": 4096,
+      "state": "active",
+      "category": "Technical",
+      "description": "A web application for task management",
+      "visibility": "public",
+      "docs": "/home/user/projects/my-app/docs"
     }
   ]
 }
@@ -481,6 +650,55 @@ cd $(proj path my-app) && npm test
 proj list --json | jq -r '.projects[].path' | xargs -I {} sh -c 'cd {} && git status'
 ```
 
+## CLI Autocompetion
+
+```shell
+  _proj() {
+    local -a commands projects
+    commands=(
+      'list:List all projects'
+      'path:Get project path'
+      'docs:Get docs path'
+      'add:Add a project'
+      'set-docs:Set docs directory'
+      'set-category:Set project category'
+      'set-description:Set project description'
+      'set-visibility:Set project visibility'
+      'remove:Remove a project'
+      'scan:Scan directory for projects'
+      'export-daemon:Export projects in daemon format'
+      'complete:Mark as completed'
+      'pause:Mark as paused'
+      'archive:Mark as archived'
+      'reactivate:Mark as active'
+      'help:Show help'
+      'version:Show version'
+    )
+
+    if (( CURRENT == 2 )); then
+      _describe 'command' commands
+    elif (( CURRENT == 3 )); then
+      case "$words[2]" in
+        path|docs|remove|complete|pause|archive|reactivate|set-docs|set-category|set-description|set-visibility)
+          projects=(${(f)"$(proj list --json 2>/dev/null | jq -r '.projects[].name' 2>/dev/null)"})
+          _describe 'project' projects
+          ;;
+        add|scan)
+          _directories
+          ;;
+      esac
+    fi
+  }
+
+  compdef _proj proj
+```
+  After adding:
+
+  # Reload your shell
+  source ~/.bashrc  # or ~/.zshrc
+
+
+
 ---
 
 ## Comparison with Other Tools
@@ -514,16 +732,25 @@ proj list --json | jq -r '.projects[].path' | xargs -I {} sh -c 'cd {} && git st
 
 ---
 
+## Recent Enhancements (v1.1.0)
+
+- ✅ **Categories** - Organize projects by custom categories
+- ✅ **Descriptions** - Add descriptions to projects for better context
+- ✅ **Visibility** - Control project visibility (public/private/internal/custom)
+- ✅ **Daemon Export** - Export projects in daemon format with filtering
+- ✅ **Documentation Paths** - Set and navigate to project docs directories
+- ✅ **Project States** - Track active/paused/completed/archived projects
+
 ## Future Enhancements
 
 Potential features for future versions:
 
-- **Tags** - Group projects by tag (`proj list --tag work`)
 - **Search** - Find projects by keyword (`proj search "api"`)
 - **Stats** - Show project statistics (`proj stats`)
 - **Git integration** - Show git status in list
 - **Recent** - Track recently accessed projects
 - **Fuzzy matching** - `pd my` → matches `my-app`
+- **Templates** - Project templates for quick scaffolding
 
 ---
 

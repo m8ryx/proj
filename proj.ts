@@ -36,6 +36,9 @@ interface Project {
   docs?: string;
   state?: ProjectState;
   completedAt?: string;
+  category?: string;
+  description?: string;
+  visibility?: string;
 }
 
 interface ProjectConfig {
@@ -319,6 +322,18 @@ function listProjects(
         console.log(`  Completed: ${completedDate}`);
       }
 
+      if (project.category) {
+        console.log(`  Category: ${project.category}`);
+      }
+
+      if (project.visibility) {
+        console.log(`  Visibility: ${project.visibility}`);
+      }
+
+      if (project.description) {
+        console.log(`  Description: ${project.description}`);
+      }
+
       if (project.docs) {
         console.log(`  Docs: ${project.docs}`);
       }
@@ -525,6 +540,149 @@ function setDocs(name: string, docsPath: string): void {
 }
 
 /**
+ * Set category for a project
+ */
+function setCategory(name: string, category: string): void {
+  if (!name || name.trim() === "") {
+    console.error("Error: Project name is required");
+    console.error("Usage: proj set-category <name> <category>");
+    process.exit(1);
+  }
+
+  if (!category || category.trim() === "") {
+    console.error("Error: Category is required");
+    console.error("Usage: proj set-category <name> <category>");
+    process.exit(1);
+  }
+
+  const config = loadConfig();
+  const project = config.projects.find((p) => p.name === name);
+
+  if (!project) {
+    console.error(`Error: Project '${name}' not found`);
+    console.error(`Run 'proj list' to see available projects`);
+    process.exit(1);
+  }
+
+  project.category = category;
+  saveConfig(config);
+
+  console.log(`✓ Set category for '${name}' to '${category}'`);
+}
+
+/**
+ * Set description for a project
+ */
+function setDescription(name: string, description: string): void {
+  if (!name || name.trim() === "") {
+    console.error("Error: Project name is required");
+    console.error("Usage: proj set-description <name> <description>");
+    process.exit(1);
+  }
+
+  if (!description || description.trim() === "") {
+    console.error("Error: Description is required");
+    console.error("Usage: proj set-description <name> <description>");
+    process.exit(1);
+  }
+
+  const config = loadConfig();
+  const project = config.projects.find((p) => p.name === name);
+
+  if (!project) {
+    console.error(`Error: Project '${name}' not found`);
+    console.error(`Run 'proj list' to see available projects`);
+    process.exit(1);
+  }
+
+  project.description = description;
+  saveConfig(config);
+
+  console.log(`✓ Set description for '${name}'`);
+}
+
+/**
+ * Set visibility for a project
+ */
+function setVisibility(name: string, visibility: string): void {
+  if (!name || name.trim() === "") {
+    console.error("Error: Project name is required");
+    console.error("Usage: proj set-visibility <name> <visibility>");
+    process.exit(1);
+  }
+
+  if (!visibility || visibility.trim() === "") {
+    console.error("Error: Visibility is required");
+    console.error("Usage: proj set-visibility <name> <visibility>");
+    console.error("Common values: private, internal, public");
+    process.exit(1);
+  }
+
+  const config = loadConfig();
+  const project = config.projects.find((p) => p.name === name);
+
+  if (!project) {
+    console.error(`Error: Project '${name}' not found`);
+    console.error(`Run 'proj list' to see available projects`);
+    process.exit(1);
+  }
+
+  project.visibility = visibility;
+  saveConfig(config);
+
+  console.log(`✓ Set visibility for '${name}' to '${visibility}'`);
+}
+
+/**
+ * Export projects in daemon format
+ */
+function exportDaemon(options: { state?: "active" | "all"; visibility?: string } = {}): void {
+  const config = loadConfig();
+
+  // Filter projects based on state
+  let projects = config.projects;
+  if (options.state !== "all") {
+    projects = projects.filter((p) => (p.state || "active") === "active");
+  }
+
+  // Filter by visibility if specified
+  if (options.visibility) {
+    projects = projects.filter((p) => p.visibility === options.visibility);
+  }
+
+  // Group by category
+  const categories = new Map<string, Project[]>();
+
+  for (const project of projects) {
+    const category = project.category || "Uncategorized";
+    if (!categories.has(category)) {
+      categories.set(category, []);
+    }
+    categories.get(category)!.push(project);
+  }
+
+  // Output in daemon format
+  console.log("[PROJECTS]");
+  console.log("");
+
+  // Sort categories alphabetically
+  const sortedCategories = Array.from(categories.keys()).sort();
+
+  for (const category of sortedCategories) {
+    const categoryProjects = categories.get(category)!;
+    console.log(`${category}:`);
+    for (const project of categoryProjects) {
+      if (project.description) {
+        console.log(`- ${project.description}`);
+      } else {
+        console.log(`- ${project.name}`);
+      }
+    }
+    console.log("");
+  }
+}
+
+/**
  * Scan a directory for projects
  */
 function scanDirectory(dirPath: string): void {
@@ -616,8 +774,12 @@ COMMANDS:
   docs <name>                    Output docs path (use with: cd $(proj docs <name>))
   add <name> <path>              Add a project to the list
   set-docs <name> <docs-path>    Set or update docs directory for a project
+  set-category <name> <cat>      Set category for a project
+  set-description <name> <desc>  Set description for a project
+  set-visibility <name> <vis>    Set visibility for a project (e.g., private, internal, public)
   remove <name>                  Remove a project from the list
   scan <directory>               Auto-discover and add projects in a directory
+  export-daemon                  Export projects in daemon format
 
   complete <name>                Mark project as completed
   pause <name>                   Mark project as paused
@@ -631,6 +793,7 @@ OPTIONS:
   --json                         Output as JSON (for list command)
   --verbose, -v                  Show verbose output (for list command)
   --docs <path>                  Specify docs directory (for add command)
+  --visibility <value>           Filter by visibility (for export-daemon command)
 
   --all                          Show all projects regardless of state
   --completed                    Show only completed projects
@@ -652,6 +815,17 @@ EXAMPLES:
 
   # Set docs for an existing project
   proj set-docs my-app ~/projects/my-app/docs
+
+  # Set category, description, and visibility
+  proj set-category my-app Technical
+  proj set-description my-app "A web application for task management"
+  proj set-visibility my-app public
+
+  # Export projects in daemon format
+  proj export-daemon > ~/Projects/Daemon/public/sections/projects.md
+
+  # Export only public projects
+  proj export-daemon --visibility public > ~/Projects/Daemon/public/sections/projects.md
 
   # List active projects (default)
   proj list
@@ -780,6 +954,10 @@ async function main() {
   const docsIndex = args.indexOf("--docs");
   const docsPath = docsIndex !== -1 && args[docsIndex + 1] ? args[docsIndex + 1] : undefined;
 
+  // Parse --visibility flag for export-daemon command
+  const visibilityIndex = args.indexOf("--visibility");
+  const visibilityFilter = visibilityIndex !== -1 && args[visibilityIndex + 1] ? args[visibilityIndex + 1] : undefined;
+
   // Parse state filter flags
   const allFlag = args.includes("--all");
   const completedFlag = args.includes("--completed");
@@ -842,6 +1020,42 @@ async function main() {
         process.exit(1);
       }
       setDocs(args[1], args[2]);
+      break;
+
+    case "set-category":
+      if (args.length < 3) {
+        console.error("Error: Both name and category are required");
+        console.error("Usage: proj set-category <name> <category>");
+        process.exit(1);
+      }
+      setCategory(args[1], args[2]);
+      break;
+
+    case "set-description":
+      if (args.length < 3) {
+        console.error("Error: Both name and description are required");
+        console.error("Usage: proj set-description <name> <description>");
+        process.exit(1);
+      }
+      // Join remaining args to allow multi-word descriptions
+      setDescription(args[1], args.slice(2).join(" "));
+      break;
+
+    case "set-visibility":
+      if (args.length < 3) {
+        console.error("Error: Both name and visibility are required");
+        console.error("Usage: proj set-visibility <name> <visibility>");
+        console.error("Common values: private, internal, public");
+        process.exit(1);
+      }
+      setVisibility(args[1], args[2]);
+      break;
+
+    case "export-daemon":
+      exportDaemon({
+        state: allFlag ? "all" : "active",
+        visibility: visibilityFilter
+      });
       break;
 
     case "remove":
