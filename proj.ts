@@ -39,6 +39,8 @@ interface Project {
   category?: string;
   description?: string;
   visibility?: string;
+  repoUrl?: string;
+  nextSteps?: string;
 }
 
 interface ProjectConfig {
@@ -332,6 +334,14 @@ function listProjects(
 
       if (project.description) {
         console.log(`  Description: ${project.description}`);
+      }
+
+      if (project.repoUrl) {
+        console.log(`  Repo: ${project.repoUrl}`);
+      }
+
+      if (project.nextSteps) {
+        console.log(`  Next Steps: ${project.nextSteps}`);
       }
 
       if (project.docs) {
@@ -634,6 +644,68 @@ function setVisibility(name: string, visibility: string): void {
 }
 
 /**
+ * Set repository URL for a project
+ */
+function setRepoUrl(name: string, repoUrl: string): void {
+  if (!name || name.trim() === "") {
+    console.error("Error: Project name is required");
+    console.error("Usage: proj set-repo <name> <url>");
+    process.exit(1);
+  }
+
+  if (!repoUrl || repoUrl.trim() === "") {
+    console.error("Error: Repository URL is required");
+    console.error("Usage: proj set-repo <name> <url>");
+    process.exit(1);
+  }
+
+  const config = loadConfig();
+  const project = config.projects.find((p) => p.name === name);
+
+  if (!project) {
+    console.error(`Error: Project '${name}' not found`);
+    console.error(`Run 'proj list' to see available projects`);
+    process.exit(1);
+  }
+
+  project.repoUrl = repoUrl;
+  saveConfig(config);
+
+  console.log(`✓ Set repository URL for '${name}'`);
+}
+
+/**
+ * Set next steps for a project
+ */
+function setNextSteps(name: string, nextSteps: string): void {
+  if (!name || name.trim() === "") {
+    console.error("Error: Project name is required");
+    console.error("Usage: proj set-next-steps <name> <steps>");
+    process.exit(1);
+  }
+
+  if (!nextSteps || nextSteps.trim() === "") {
+    console.error("Error: Next steps is required");
+    console.error("Usage: proj set-next-steps <name> <steps>");
+    process.exit(1);
+  }
+
+  const config = loadConfig();
+  const project = config.projects.find((p) => p.name === name);
+
+  if (!project) {
+    console.error(`Error: Project '${name}' not found`);
+    console.error(`Run 'proj list' to see available projects`);
+    process.exit(1);
+  }
+
+  project.nextSteps = nextSteps;
+  saveConfig(config);
+
+  console.log(`✓ Set next steps for '${name}'`);
+}
+
+/**
  * Export projects in daemon format
  */
 function exportDaemon(options: { state?: "active" | "all"; visibility?: string } = {}): void {
@@ -777,6 +849,8 @@ COMMANDS:
   set-category <name> <cat>      Set category for a project
   set-description <name> <desc>  Set description for a project
   set-visibility <name> <vis>    Set visibility for a project (e.g., private, internal, public)
+  set-repo <name> <url>          Set repository URL for a project
+  set-next-steps <name> <steps>  Set next steps for a project
   remove <name>                  Remove a project from the list
   scan <directory>               Auto-discover and add projects in a directory
   export-daemon                  Export projects in daemon format
@@ -1049,6 +1123,25 @@ async function main() {
         process.exit(1);
       }
       setVisibility(args[1], args[2]);
+      break;
+
+    case "set-repo":
+      if (args.length < 3) {
+        console.error("Error: Both name and repository URL are required");
+        console.error("Usage: proj set-repo <name> <url>");
+        process.exit(1);
+      }
+      setRepoUrl(args[1], args[2]);
+      break;
+
+    case "set-next-steps":
+      if (args.length < 3) {
+        console.error("Error: Both name and next steps are required");
+        console.error("Usage: proj set-next-steps <name> <steps>");
+        process.exit(1);
+      }
+      // Join remaining args to allow multi-word next steps
+      setNextSteps(args[1], args.slice(2).join(" "));
       break;
 
     case "export-daemon":

@@ -15,6 +15,8 @@ _proj() {
     'set-category:Set project category'
     'set-description:Set project description'
     'set-visibility:Set project visibility'
+    'set-repo:Set repository URL'
+    'set-next-steps:Set next steps'
     'remove:Remove a project'
     'scan:Scan directory for projects'
     'export-daemon:Export projects in daemon format'
@@ -30,7 +32,7 @@ _proj() {
     _describe 'command' commands
   elif (( CURRENT == 3 )); then
     case "$words[2]" in
-      path|docs|remove|complete|pause|archive|reactivate|set-docs|set-category|set-description|set-visibility)
+      path|docs|remove|complete|pause|archive|reactivate|set-docs|set-category|set-description|set-visibility|set-repo|set-next-steps)
         projects=(${(f)"$(proj list --json 2>/dev/null | jq -r '.projects[].name' 2>/dev/null)"})
         _describe 'project' projects
         ;;
