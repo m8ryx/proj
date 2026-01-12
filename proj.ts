@@ -744,11 +744,20 @@ function exportDaemon(options: { state?: "active" | "all"; visibility?: string }
     const categoryProjects = categories.get(category)!;
     console.log(`${category}:`);
     for (const project of categoryProjects) {
-      if (project.description) {
-        console.log(`- ${project.description}`);
+      let output = "- ";
+
+      if (project.repoUrl) {
+        // Format: [name](url) - description
+        output += `[${project.name}](${project.repoUrl})`;
+        if (project.description) {
+          output += ` - ${project.description}`;
+        }
       } else {
-        console.log(`- ${project.name}`);
+        // No repo URL: use description or name
+        output += project.description || project.name;
       }
+
+      console.log(output);
     }
     console.log("");
   }
