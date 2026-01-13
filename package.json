@@ -9,7 +9,10 @@
   "scripts": {
     "help": "bun run proj.ts --help",
     "list": "bun run proj.ts list",
-    "test": "bun run proj.ts --version",
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "test:watch": "bun test --watch",
     "mcp": "bun run mcp-server.ts"
   },
   "keywords": [

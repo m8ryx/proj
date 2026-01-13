@@ -51,7 +51,7 @@ interface ProjectConfig {
 // Configuration Management
 // ============================================================================
 
-const CONFIG_DIR = join(homedir(), ".config", "proj");
+const CONFIG_DIR = process.env.PROJ_CONFIG_DIR || join(homedir(), ".config", "proj");
 const CONFIG_FILE = join(CONFIG_DIR, "projects.json");
 
 function ensureConfigDir(): void {

@@ -25,9 +25,9 @@ import { join, resolve, basename } from "path";
 // Type Definitions
 // ============================================================================
 
-type ProjectState = "active" | "paused" | "completed" | "archived";
+export type ProjectState = "active" | "paused" | "completed" | "archived";
 
-interface Project {
+export interface Project {
   name: string;
   path: string;
   added: string;
@@ -43,7 +43,7 @@ interface Project {
   nextSteps?: string;
 }
 
-interface ProjectConfig {
+export interface ProjectConfig {
   version: string;
   projects: Project[];
 }
@@ -52,35 +52,48 @@ interface ProjectConfig {
 // Configuration
 // ============================================================================
 
-const CONFIG_DIR = join(homedir(), ".config", "proj");
-const CONFIG_FILE = join(CONFIG_DIR, "projects.json");
+/**
+ * Get config directory path (evaluated dynamically for testing)
+ */
+function getConfigDir(): string {
+  return process.env.PROJ_CONFIG_DIR || join(homedir(), ".config", "proj");
+}
+
+/**
+ * Get config file path (evaluated dynamically for testing)
+ */
+function getConfigFile(): string {
+  return join(getConfigDir(), "projects.json");
+}
 
 /**
  * Ensure config directory exists
  */
-function ensureConfigDir(): void {
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
+export function ensureConfigDir(): void {
+  const configDir = getConfigDir();
+  if (!existsSync(configDir)) {
+    mkdirSync(configDir, { recursive: true });
   }
 }
 
 /**
  * Load project configuration
  */
-function loadConfig(): ProjectConfig {
+export function loadConfig(): ProjectConfig {
   ensureConfigDir();
+  const configFile = getConfigFile();
 
-  if (!existsSync(CONFIG_FILE)) {
+  if (!existsSync(configFile)) {
     const defaultConfig: ProjectConfig = {
       version: "1.0.0",
       projects: [],
     };
-    writeFileSync(CONFIG_FILE, JSON.stringify(defaultConfig, null, 2));
+    writeFileSync(configFile, JSON.stringify(defaultConfig, null, 2));
     return defaultConfig;
   }
 
   try {
-    const content = readFileSync(CONFIG_FILE, "utf-8");
+    const content = readFileSync(configFile, "utf-8");
     const config = JSON.parse(content) as ProjectConfig;
 
     // Migrate projects without state to "active" (transparent migration)
@@ -91,7 +104,7 @@ function loadConfig(): ProjectConfig {
 
     return config;
   } catch (error) {
-    console.error(`Error: Failed to parse config file at ${CONFIG_FILE}`);
+    console.error(`Error: Failed to parse config file at ${configFile}`);
     console.error(
       "The file may be corrupted. Please fix it manually or delete it to reset.",
     );
@@ -102,12 +115,13 @@ function loadConfig(): ProjectConfig {
 /**
  * Save project configuration
  */
-function saveConfig(config: ProjectConfig): void {
+export function saveConfig(config: ProjectConfig): void {
   ensureConfigDir();
+  const configFile = getConfigFile();
   try {
-    writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    writeFileSync(configFile, JSON.stringify(config, null, 2));
   } catch (error) {
-    console.error(`Error: Failed to write config file at ${CONFIG_FILE}`);
+    console.error(`Error: Failed to write config file at ${configFile}`);
     process.exit(1);
   }
 }
@@ -157,7 +171,7 @@ function setProjectState(
 /**
  * Get directory metadata
  */
-function getDirectoryMetadata(dirPath: string): {
+export function getDirectoryMetadata(dirPath: string): {
   lastModified: string;
   size: number;
 } {
@@ -178,7 +192,7 @@ function getDirectoryMetadata(dirPath: string): {
 /**
  * Check if directory looks like a project (has .git, package.json, etc.)
  */
-function looksLikeProject(dirPath: string): boolean {
+export function looksLikeProject(dirPath: string): boolean {
   const indicators = [
     ".git",
     ".gitignore",
@@ -1221,8 +1235,10 @@ async function main() {
   }
 }
 
-// Run CLI
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+// Run CLI only when executed directly (not when imported as module)
+if (import.meta.main) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
