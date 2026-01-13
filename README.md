@@ -1,8 +1,8 @@
 # proj - Project Directory Management CLI
 
-**Version:** 1.1.0
+**Version:** 1.1.1
 **Author:** Rick Rezinas
-**Last Updated:** 2026-01-11
+**Last Updated:** 2026-01-12
 
 ---
 
@@ -12,7 +12,26 @@
 
 ### Philosophy
 
-`proj` follows **CLI-First Architecture**:
+`proj` was built to remove friction when moving between multiple projects. It is not designed for team collaboration in a larger sense, but it can be used to give collaborators visibility into current projects.
+
+#### What proj is not
+
+`proj` is not 
+- a todo list
+- project manager
+- gantt chart
+- reminder system or Eisenhower Matrix
+
+#### What proj is
+
+`proj` is designed to give you a high level overview of current projects. It is intended to meet you where you are, provide at-a-glance information to reduce the inertia of picking something back up. Where are the docs, what are some key notes, where was I at, what am I doing next.
+
+As I work in an ecosystem, it's easy to configure and integrate with proj. I have a Makefile to export public projects to my Daemon. `proj` contains an MCP Server so that your AI can see what you have going on also.
+
+But the focus of `proj` is to reduce human friction.
+
+#### Design
+'proj' follows **CLI-First Architecture**:
 
 1. **Deterministic** - Same input always produces same output
 2. **Clean** - Single responsibility (project directory management)
