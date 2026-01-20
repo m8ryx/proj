@@ -48,6 +48,14 @@ export interface ProjectConfig {
   projects: Project[];
 }
 
+export interface Template {
+  name: string;
+  description: string;
+  docsLocation?: string;
+  gitInit?: boolean;
+  nextSteps?: string[];
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================
