@@ -75,6 +75,20 @@ function getConfigFile(): string {
 }
 
 /**
+ * Get templates directory path
+ */
+export function getTemplatesDir(): string {
+  return join(getConfigDir(), "templates");
+}
+
+/**
+ * Get specific template directory path
+ */
+export function getTemplateDir(templateName: string): string {
+  return join(getTemplatesDir(), templateName);
+}
+
+/**
  * Ensure config directory exists
  */
 export function ensureConfigDir(): void {
