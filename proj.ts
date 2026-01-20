@@ -88,6 +88,53 @@ export function getTemplateDir(templateName: string): string {
   return join(getTemplatesDir(), templateName);
 }
 
+export interface TemplateInfo {
+  id: string;
+  name: string;
+  description: string;
+}
+
+/**
+ * List all available templates
+ */
+export function listTemplates(): TemplateInfo[] {
+  const templatesDir = getTemplatesDir();
+
+  if (!existsSync(templatesDir)) {
+    return [];
+  }
+
+  const templates: TemplateInfo[] = [];
+
+  try {
+    const entries = readdirSync(templatesDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const templateJsonPath = join(templatesDir, entry.name, "template.json");
+
+        if (existsSync(templateJsonPath)) {
+          try {
+            const content = readFileSync(templateJsonPath, "utf-8");
+            const config = JSON.parse(content) as Template;
+            templates.push({
+              id: entry.name,
+              name: config.name,
+              description: config.description,
+            });
+          } catch {
+            // Skip invalid template.json files
+          }
+        }
+      }
+    }
+  } catch {
+    return [];
+  }
+
+  return templates;
+}
+
 /**
  * Ensure config directory exists
  */

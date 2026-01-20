@@ -1,6 +1,7 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
+import { mkdirSync, writeFileSync } from "fs";
 import type { Template } from "../../proj";
-import { getTemplatesDir, getTemplateDir } from "../../proj";
+import { getTemplatesDir, getTemplateDir, listTemplates } from "../../proj";
 import { createTestEnv } from "../helpers/test-utils";
 import { join } from "path";
 
@@ -63,5 +64,68 @@ describe("Template directory helpers", () => {
   test("getTemplateDir returns specific template directory", () => {
     const templateDir = getTemplateDir("my-template");
     expect(templateDir).toBe(join(configDir, "templates", "my-template"));
+  });
+});
+
+describe("listTemplates", () => {
+  let configDir: string;
+  let cleanup: () => void;
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    const testEnv = createTestEnv();
+    configDir = testEnv.configDir;
+    cleanup = testEnv.cleanup;
+    originalEnv = process.env.PROJ_CONFIG_DIR;
+    process.env.PROJ_CONFIG_DIR = configDir;
+  });
+
+  afterEach(() => {
+    if (originalEnv !== undefined) {
+      process.env.PROJ_CONFIG_DIR = originalEnv;
+    } else {
+      delete process.env.PROJ_CONFIG_DIR;
+    }
+    cleanup();
+  });
+
+  test("returns empty array when templates directory does not exist", () => {
+    const templates = listTemplates();
+    expect(templates).toEqual([]);
+  });
+
+  test("returns empty array when templates directory is empty", () => {
+    mkdirSync(join(configDir, "templates"), { recursive: true });
+    const templates = listTemplates();
+    expect(templates).toEqual([]);
+  });
+
+  test("returns template info for valid templates", () => {
+    const templatesDir = join(configDir, "templates");
+    const templateDir = join(templatesDir, "test-template");
+    mkdirSync(join(templateDir, "files"), { recursive: true });
+    writeFileSync(
+      join(templateDir, "template.json"),
+      JSON.stringify({
+        name: "Test Template",
+        description: "A test template",
+      })
+    );
+
+    const templates = listTemplates();
+
+    expect(templates.length).toBe(1);
+    expect(templates[0].id).toBe("test-template");
+    expect(templates[0].name).toBe("Test Template");
+    expect(templates[0].description).toBe("A test template");
+  });
+
+  test("skips directories without template.json", () => {
+    const templatesDir = join(configDir, "templates");
+    mkdirSync(join(templatesDir, "invalid-template", "files"), { recursive: true });
+    // No template.json
+
+    const templates = listTemplates();
+    expect(templates).toEqual([]);
   });
 });
