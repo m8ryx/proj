@@ -95,6 +95,30 @@ export interface TemplateInfo {
 }
 
 /**
+ * Load a template configuration
+ */
+export function loadTemplate(templateId: string): Template {
+  const templateDir = getTemplateDir(templateId);
+
+  if (!existsSync(templateDir)) {
+    throw new Error(`Template '${templateId}' not found`);
+  }
+
+  const templateJsonPath = join(templateDir, "template.json");
+
+  if (!existsSync(templateJsonPath)) {
+    throw new Error(`template.json not found in template '${templateId}'`);
+  }
+
+  try {
+    const content = readFileSync(templateJsonPath, "utf-8");
+    return JSON.parse(content) as Template;
+  } catch (error) {
+    throw new Error(`Failed to parse template.json for '${templateId}'`);
+  }
+}
+
+/**
  * List all available templates
  */
 export function listTemplates(): TemplateInfo[] {

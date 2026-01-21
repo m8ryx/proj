@@ -1,7 +1,7 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
 import { mkdirSync, writeFileSync } from "fs";
 import type { Template } from "../../proj";
-import { getTemplatesDir, getTemplateDir, listTemplates } from "../../proj";
+import { getTemplatesDir, getTemplateDir, listTemplates, loadTemplate } from "../../proj";
 import { createTestEnv } from "../helpers/test-utils";
 import { join } from "path";
 
@@ -127,5 +127,62 @@ describe("listTemplates", () => {
 
     const templates = listTemplates();
     expect(templates).toEqual([]);
+  });
+});
+
+describe("loadTemplate", () => {
+  let configDir: string;
+  let cleanup: () => void;
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    const testEnv = createTestEnv();
+    configDir = testEnv.configDir;
+    cleanup = testEnv.cleanup;
+    originalEnv = process.env.PROJ_CONFIG_DIR;
+    process.env.PROJ_CONFIG_DIR = configDir;
+  });
+
+  afterEach(() => {
+    if (originalEnv !== undefined) {
+      process.env.PROJ_CONFIG_DIR = originalEnv;
+    } else {
+      delete process.env.PROJ_CONFIG_DIR;
+    }
+    cleanup();
+  });
+
+  test("throws error when template does not exist", () => {
+    expect(() => loadTemplate("nonexistent")).toThrow("Template 'nonexistent' not found");
+  });
+
+  test("throws error when template.json is missing", () => {
+    const templateDir = join(configDir, "templates", "no-config");
+    mkdirSync(join(templateDir, "files"), { recursive: true });
+
+    expect(() => loadTemplate("no-config")).toThrow("template.json not found");
+  });
+
+  test("returns parsed template config", () => {
+    const templateDir = join(configDir, "templates", "valid-template");
+    mkdirSync(join(templateDir, "files"), { recursive: true });
+    writeFileSync(
+      join(templateDir, "template.json"),
+      JSON.stringify({
+        name: "Valid Template",
+        description: "A valid template",
+        docsLocation: "~/Obsidian/{{name}}",
+        gitInit: true,
+        nextSteps: ["Step 1", "Step 2"],
+      })
+    );
+
+    const template = loadTemplate("valid-template");
+
+    expect(template.name).toBe("Valid Template");
+    expect(template.description).toBe("A valid template");
+    expect(template.docsLocation).toBe("~/Obsidian/{{name}}");
+    expect(template.gitInit).toBe(true);
+    expect(template.nextSteps).toEqual(["Step 1", "Step 2"]);
   });
 });
