@@ -1166,6 +1166,15 @@ function createProjectCommand(
 
   // Register project
   const config = loadConfig();
+
+  // Check if project with this name already exists
+  const existing = config.projects.find((p) => p.name === projectName);
+  if (existing) {
+    console.error(`Error: Project '${projectName}' already exists at: ${existing.path}`);
+    console.error(`Remove it first with: proj remove ${projectName}`);
+    process.exit(1);
+  }
+
   const metadata = getDirectoryMetadata(projectPath);
   const now = new Date().toISOString();
 

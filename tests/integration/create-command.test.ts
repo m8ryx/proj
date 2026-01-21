@@ -110,4 +110,17 @@ describe("proj create command (non-interactive)", () => {
 
     expect(project.nextSteps).toContain("Install dependencies");
   });
+
+  test("fails when project name already exists", async () => {
+    // First create a project
+    const projectPath1 = join(testDir, "first-app");
+    await $`PROJ_CONFIG_DIR=${configDir} bun run proj.ts create basic first-app --path=${projectPath1} --no-git`.quiet();
+
+    // Try to create another with same name but different path
+    const projectPath2 = join(testDir, "second-app");
+    const result = await $`PROJ_CONFIG_DIR=${configDir} bun run proj.ts create basic first-app --path=${projectPath2} --no-git`.nothrow();
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain("already exists");
+  });
 });
