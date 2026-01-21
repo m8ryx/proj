@@ -22,6 +22,7 @@ import {
 import { execSync } from "child_process";
 import { homedir } from "os";
 import { join, resolve, basename } from "path";
+import * as readline from "readline";
 
 // ============================================================================
 // Type Definitions
@@ -1060,6 +1061,123 @@ function templatesCommand(options: { json?: boolean } = {}): void {
   }
 }
 
+// ============================================================================
+// Interactive Prompts
+// ============================================================================
+
+/**
+ * Prompt user for input
+ */
+async function prompt(question: string, defaultValue?: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const displayQuestion = defaultValue
+    ? `${question} [${defaultValue}]: `
+    : `${question}: `;
+
+  return new Promise((resolve) => {
+    rl.question(displayQuestion, (answer) => {
+      rl.close();
+      resolve(answer.trim() || defaultValue || "");
+    });
+  });
+}
+
+/**
+ * Prompt user to select from options
+ */
+async function promptSelect(
+  question: string,
+  options: { value: string; label: string }[]
+): Promise<string> {
+  console.log(`\n${question}\n`);
+  options.forEach((opt, i) => {
+    console.log(`  ${i + 1}. ${opt.label}`);
+  });
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question("\nEnter number: ", (answer) => {
+      rl.close();
+      const index = parseInt(answer.trim(), 10) - 1;
+      if (index >= 0 && index < options.length) {
+        resolve(options[index].value);
+      } else {
+        // Default to first option
+        resolve(options[0].value);
+      }
+    });
+  });
+}
+
+/**
+ * Interactive project creation
+ */
+async function createProjectInteractive(): Promise<void> {
+  const templates = listTemplates();
+
+  if (templates.length === 0) {
+    console.error("No templates found.");
+    console.error(`\nCreate templates in: ${getTemplatesDir()}`);
+    process.exit(1);
+  }
+
+  // Select template
+  const templateId = await promptSelect(
+    "Select a template:",
+    templates.map((t) => ({ value: t.id, label: `${t.id} - ${t.name}` }))
+  );
+
+  const template = loadTemplate(templateId);
+
+  // Get project name
+  const projectName = await prompt("Project name");
+  if (!projectName) {
+    console.error("Error: Project name is required");
+    process.exit(1);
+  }
+
+  // Get path
+  const defaultPath = resolve(process.cwd(), projectName);
+  const projectPath = await prompt("Project path", defaultPath);
+
+  // Get docs path
+  let defaultDocs = "";
+  if (template.docsLocation) {
+    defaultDocs = substituteVariables(template.docsLocation, {
+      name: projectName,
+      location: projectPath,
+      docs: "",
+      date: new Date().toISOString().split("T")[0],
+    });
+    if (defaultDocs.startsWith("./") || defaultDocs.startsWith("../")) {
+      defaultDocs = resolve(projectPath, defaultDocs);
+    } else if (defaultDocs.startsWith("~")) {
+      defaultDocs = defaultDocs.replace("~", homedir());
+    }
+  }
+  const docsPath = await prompt("Docs directory", defaultDocs);
+
+  // Git init?
+  const defaultGit = template.gitInit ?? true;
+  const gitAnswer = await prompt("Initialize git repository? (y/n)", defaultGit ? "y" : "n");
+  const shouldGitInit = gitAnswer.toLowerCase() === "y";
+
+  // Call the main create function
+  createProjectCommand(templateId, projectName, {
+    path: projectPath,
+    docs: docsPath || undefined,
+    git: shouldGitInit,
+  });
+}
+
 interface CreateOptions {
   path?: string;
   docs?: string;
@@ -1623,12 +1741,17 @@ async function main() {
       break;
 
     case "create":
-      createProjectCommand(args[1], args[2], {
-        path: pathArg,
-        docs: docsPath,
-        git: gitFlag,
-        json: jsonFlag,
-      });
+      if (!args[1]) {
+        // Interactive mode
+        await createProjectInteractive();
+      } else {
+        createProjectCommand(args[1], args[2], {
+          path: pathArg,
+          docs: docsPath,
+          git: gitFlag,
+          json: jsonFlag,
+        });
+      }
       break;
 
     default:
