@@ -143,7 +143,7 @@ export function loadTemplate(templateId: string): Template {
     const content = readFileSync(templateJsonPath, "utf-8");
     return JSON.parse(content) as Template;
   } catch (error) {
-    throw new Error(`Failed to parse template.json for '${templateId}'`);
+    throw new Error(`Failed to parse template.json for '${templateId}': ${(error as Error).message}`);
   }
 }
 
