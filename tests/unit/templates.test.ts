@@ -1,7 +1,7 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdirSync, writeFileSync, readFileSync } from "fs";
 import type { Template } from "../../proj";
-import { getTemplatesDir, getTemplateDir, listTemplates, loadTemplate, substituteVariables } from "../../proj";
+import { getTemplatesDir, getTemplateDir, listTemplates, loadTemplate, substituteVariables, copyTemplateFiles } from "../../proj";
 import { createTestEnv } from "../helpers/test-utils";
 import { join } from "path";
 
@@ -226,5 +226,92 @@ describe("substituteVariables", () => {
       vars
     );
     expect(result).toBe("# my-project\nPath: /home/user/my-project\nDocs: /home/user/docs/my-project\nCreated: 2026-01-19");
+  });
+});
+
+describe("copyTemplateFiles", () => {
+  let configDir: string;
+  let cleanup: () => void;
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    const testEnv = createTestEnv();
+    configDir = testEnv.configDir;
+    cleanup = testEnv.cleanup;
+    originalEnv = process.env.PROJ_CONFIG_DIR;
+    process.env.PROJ_CONFIG_DIR = configDir;
+  });
+
+  afterEach(() => {
+    if (originalEnv !== undefined) {
+      process.env.PROJ_CONFIG_DIR = originalEnv;
+    } else {
+      delete process.env.PROJ_CONFIG_DIR;
+    }
+    cleanup();
+  });
+
+  test("copies files from template to destination", () => {
+    // Create template with files
+    const templateDir = join(configDir, "templates", "copy-test");
+    const filesDir = join(templateDir, "files");
+    mkdirSync(filesDir, { recursive: true });
+    writeFileSync(join(filesDir, "README.md"), "# {{name}}");
+    writeFileSync(
+      join(templateDir, "template.json"),
+      JSON.stringify({ name: "Copy Test", description: "Test" })
+    );
+
+    // Create destination
+    const destDir = join(configDir, "dest-project");
+    mkdirSync(destDir, { recursive: true });
+
+    copyTemplateFiles("copy-test", destDir, { name: "my-project", location: destDir, docs: "", date: "2026-01-19" });
+
+    // Verify file was copied and variables substituted
+    const readmeContent = readFileSync(join(destDir, "README.md"), "utf-8");
+    expect(readmeContent).toBe("# my-project");
+  });
+
+  test("copies nested directory structure", () => {
+    const templateDir = join(configDir, "templates", "nested-test");
+    const filesDir = join(templateDir, "files");
+    mkdirSync(join(filesDir, "src"), { recursive: true });
+    writeFileSync(join(filesDir, "src", "index.ts"), "// {{name}}");
+    writeFileSync(
+      join(templateDir, "template.json"),
+      JSON.stringify({ name: "Nested Test", description: "Test" })
+    );
+
+    const destDir = join(configDir, "dest-nested");
+    mkdirSync(destDir, { recursive: true });
+
+    copyTemplateFiles("nested-test", destDir, { name: "nested-app", location: destDir, docs: "", date: "2026-01-19" });
+
+    const indexContent = readFileSync(join(destDir, "src", "index.ts"), "utf-8");
+    expect(indexContent).toBe("// nested-app");
+  });
+
+  test("skips binary files for substitution", () => {
+    const templateDir = join(configDir, "templates", "binary-test");
+    const filesDir = join(templateDir, "files");
+    mkdirSync(filesDir, { recursive: true });
+
+    // Create a simple PNG header (binary file)
+    const pngHeader = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    writeFileSync(join(filesDir, "image.png"), pngHeader);
+    writeFileSync(
+      join(templateDir, "template.json"),
+      JSON.stringify({ name: "Binary Test", description: "Test" })
+    );
+
+    const destDir = join(configDir, "dest-binary");
+    mkdirSync(destDir, { recursive: true });
+
+    copyTemplateFiles("binary-test", destDir, { name: "binary-app", location: destDir, docs: "", date: "2026-01-19" });
+
+    // Binary file should be copied as-is
+    const copiedContent = readFileSync(join(destDir, "image.png"));
+    expect(copiedContent.equals(pngHeader)).toBe(true);
   });
 });

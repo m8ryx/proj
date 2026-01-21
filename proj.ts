@@ -17,6 +17,7 @@ import {
   statSync,
   readdirSync,
   mkdirSync,
+  copyFileSync,
 } from "fs";
 import { homedir } from "os";
 import { join, resolve, basename } from "path";
@@ -183,6 +184,66 @@ export function listTemplates(): TemplateInfo[] {
   }
 
   return templates;
+}
+
+/**
+ * Check if a file is likely binary
+ */
+function isBinaryFile(filePath: string): boolean {
+  const binaryExtensions = [
+    ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp",
+    ".pdf", ".zip", ".tar", ".gz",
+    ".exe", ".dll", ".so", ".dylib",
+    ".woff", ".woff2", ".ttf", ".eot",
+  ];
+
+  const ext = filePath.toLowerCase().slice(filePath.lastIndexOf("."));
+  return binaryExtensions.includes(ext);
+}
+
+/**
+ * Copy template files to destination with variable substitution
+ */
+export function copyTemplateFiles(
+  templateId: string,
+  destPath: string,
+  variables: TemplateVariables
+): void {
+  const templateDir = getTemplateDir(templateId);
+  const filesDir = join(templateDir, "files");
+
+  if (!existsSync(filesDir)) {
+    return; // No files directory, nothing to copy
+  }
+
+  function copyRecursive(srcDir: string, destDir: string): void {
+    if (!existsSync(destDir)) {
+      mkdirSync(destDir, { recursive: true });
+    }
+
+    const entries = readdirSync(srcDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const srcPath = join(srcDir, entry.name);
+      const destFilePath = join(destDir, entry.name);
+
+      if (entry.isDirectory()) {
+        copyRecursive(srcPath, destFilePath);
+      } else if (entry.isFile()) {
+        if (isBinaryFile(srcPath)) {
+          // Copy binary files as-is
+          copyFileSync(srcPath, destFilePath);
+        } else {
+          // Read, substitute, and write text files
+          const content = readFileSync(srcPath, "utf-8");
+          const substituted = substituteVariables(content, variables);
+          writeFileSync(destFilePath, substituted);
+        }
+      }
+    }
+  }
+
+  copyRecursive(filesDir, destPath);
 }
 
 /**
