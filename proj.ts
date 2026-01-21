@@ -1178,6 +1178,51 @@ async function createProjectInteractive(): Promise<void> {
   });
 }
 
+/**
+ * Initialize a new template
+ */
+function templateInitCommand(templateName: string): void {
+  if (!templateName || templateName.trim() === "") {
+    console.error("Error: Template name is required");
+    console.error("Usage: proj template init <name>");
+    process.exit(1);
+  }
+
+  const templateDir = getTemplateDir(templateName);
+
+  if (existsSync(templateDir)) {
+    console.error(`Error: Template '${templateName}' already exists`);
+    process.exit(1);
+  }
+
+  // Create template structure
+  mkdirSync(join(templateDir, "files"), { recursive: true });
+
+  const defaultConfig: Template = {
+    name: templateName.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+    description: "A project template",
+    docsLocation: "./docs",
+    gitInit: true,
+    nextSteps: ["Install dependencies", "Start building"],
+  };
+
+  writeFileSync(
+    join(templateDir, "template.json"),
+    JSON.stringify(defaultConfig, null, 2)
+  );
+
+  // Create a starter README
+  writeFileSync(
+    join(templateDir, "files", "README.md"),
+    "# {{name}}\n\nCreated on {{date}}\n"
+  );
+
+  console.log(`Created template '${templateName}' at ${templateDir}`);
+  console.log("\nNext steps:");
+  console.log(`  1. Edit ${join(templateDir, "template.json")}`);
+  console.log(`  2. Add files to ${join(templateDir, "files")}`);
+}
+
 interface CreateOptions {
   path?: string;
   docs?: string;
@@ -1359,6 +1404,7 @@ COMMANDS:
   scan <directory>               Auto-discover and add projects in a directory
   export-daemon                  Export projects in daemon format
   templates                      List available project templates
+  template init <name>           Create a new template scaffold
   create <template> <name>       Create a new project from a template
 
   complete <name>                Mark project as completed
@@ -1448,6 +1494,9 @@ EXAMPLES:
 
   # List available templates
   proj templates
+
+  # Create a new template
+  proj template init my-template
 
   # Create a project interactively
   proj create
@@ -1768,6 +1817,16 @@ async function main() {
 
     case "templates":
       templatesCommand({ json: jsonFlag });
+      break;
+
+    case "template":
+      if (args[1] === "init") {
+        templateInitCommand(args[2]);
+      } else {
+        console.error("Error: Unknown template subcommand");
+        console.error("Usage: proj template init <name>");
+        process.exit(1);
+      }
       break;
 
     case "create":
