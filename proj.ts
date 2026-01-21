@@ -1029,6 +1029,36 @@ function scanDirectory(dirPath: string): void {
   }
 }
 
+/**
+ * List available templates
+ */
+function templatesCommand(options: { json?: boolean } = {}): void {
+  const templates = listTemplates();
+
+  if (templates.length === 0) {
+    if (options.json) {
+      console.log(JSON.stringify({ templates: [] }, null, 2));
+    } else {
+      console.log("No templates found.");
+      console.log(`\nTemplates are stored in: ${getTemplatesDir()}`);
+      console.log("Create a template directory with a template.json and files/ subdirectory.");
+    }
+    return;
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify({ templates }, null, 2));
+  } else {
+    console.log("\nAvailable Templates:\n");
+    for (const template of templates) {
+      console.log(`  ${template.id}`);
+      console.log(`    Name: ${template.name}`);
+      console.log(`    ${template.description}`);
+      console.log("");
+    }
+  }
+}
+
 // ============================================================================
 // Help Documentation
 // ============================================================================
@@ -1057,6 +1087,7 @@ COMMANDS:
   remove <name>                  Remove a project from the list
   scan <directory>               Auto-discover and add projects in a directory
   export-daemon                  Export projects in daemon format
+  templates                      List available project templates
 
   complete <name>                Mark project as completed
   pause <name>                   Mark project as paused
@@ -1067,7 +1098,7 @@ COMMANDS:
   version, --version, -v         Show version information
 
 OPTIONS:
-  --json                         Output as JSON (for list command)
+  --json                         Output as JSON (for list and templates commands)
   --verbose, -v                  Show verbose output (for list command)
   --docs <path>                  Specify docs directory (for add command)
   --visibility <value>           Filter by visibility (for export-daemon command)
@@ -1406,6 +1437,10 @@ async function main() {
         process.exit(1);
       }
       setProjectState(args[1], "active");
+      break;
+
+    case "templates":
+      templatesCommand({ json: jsonFlag });
       break;
 
     default:
