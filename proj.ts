@@ -19,6 +19,7 @@ import {
   mkdirSync,
   copyFileSync,
 } from "fs";
+import { execSync } from "child_process";
 import { homedir } from "os";
 import { join, resolve, basename } from "path";
 
@@ -1059,6 +1060,149 @@ function templatesCommand(options: { json?: boolean } = {}): void {
   }
 }
 
+interface CreateOptions {
+  path?: string;
+  docs?: string;
+  git?: boolean;
+  json?: boolean;
+}
+
+/**
+ * Create a new project from a template
+ */
+function createProjectCommand(
+  templateId: string | undefined,
+  projectName: string | undefined,
+  options: CreateOptions
+): void {
+  // Validate required args for non-interactive mode
+  if (!templateId) {
+    console.error("Error: Template is required");
+    console.error("Usage: proj create <template> <name> [--path <path>] [--docs <docs>] [--git|--no-git]");
+    console.error("Run 'proj templates' to see available templates");
+    process.exit(1);
+  }
+
+  if (!projectName) {
+    console.error("Error: Project name is required");
+    console.error("Usage: proj create <template> <name> [--path <path>] [--docs <docs>] [--git|--no-git]");
+    process.exit(1);
+  }
+
+  // Load template
+  let template: Template;
+  try {
+    template = loadTemplate(templateId);
+  } catch (error) {
+    console.error(`Error: ${(error as Error).message}`);
+    process.exit(1);
+  }
+
+  // Resolve project path
+  const projectPath = options.path
+    ? resolve(options.path)
+    : resolve(process.cwd(), projectName);
+
+  // Check if directory exists
+  if (existsSync(projectPath)) {
+    console.error(`Error: Directory already exists: ${projectPath}`);
+    console.error("Choose a different path or name");
+    process.exit(1);
+  }
+
+  // Resolve docs path
+  const date = new Date().toISOString().split("T")[0];
+  let docsPath = options.docs;
+  if (!docsPath && template.docsLocation) {
+    docsPath = substituteVariables(template.docsLocation, {
+      name: projectName,
+      location: projectPath,
+      docs: "",
+      date,
+    });
+    // Handle relative paths
+    if (docsPath.startsWith("./") || docsPath.startsWith("../")) {
+      docsPath = resolve(projectPath, docsPath);
+    } else if (docsPath.startsWith("~")) {
+      docsPath = docsPath.replace("~", homedir());
+    }
+  }
+  if (docsPath) {
+    docsPath = resolve(docsPath);
+  }
+
+  // Determine git init
+  const shouldGitInit = options.git !== undefined ? options.git : (template.gitInit ?? true);
+
+  // Create project directory
+  mkdirSync(projectPath, { recursive: true });
+
+  // Copy template files
+  const variables: TemplateVariables = {
+    name: projectName,
+    location: projectPath,
+    docs: docsPath || "",
+    date,
+  };
+  copyTemplateFiles(templateId, projectPath, variables);
+
+  // Create docs directory if specified and doesn't exist
+  if (docsPath && !existsSync(docsPath)) {
+    try {
+      mkdirSync(docsPath, { recursive: true });
+    } catch {
+      console.log(`Warning: Could not create docs directory: ${docsPath}`);
+    }
+  }
+
+  // Initialize git if requested
+  if (shouldGitInit) {
+    try {
+      execSync("git init", { cwd: projectPath, stdio: "ignore" });
+    } catch {
+      console.log("Warning: Could not initialize git repository");
+    }
+  }
+
+  // Register project
+  const config = loadConfig();
+  const metadata = getDirectoryMetadata(projectPath);
+  const now = new Date().toISOString();
+
+  const newProject: Project = {
+    name: projectName,
+    path: projectPath,
+    added: now,
+    lastModified: metadata.lastModified,
+    size: metadata.size,
+    state: "active",
+    ...(docsPath && { docs: docsPath }),
+    ...(template.nextSteps && { nextSteps: template.nextSteps.join("; ") }),
+  };
+
+  config.projects.push(newProject);
+  saveConfig(config);
+
+  // Output result
+  if (options.json) {
+    console.log(JSON.stringify({ success: true, project: newProject }, null, 2));
+  } else {
+    console.log(`Created project '${projectName}' at ${projectPath}`);
+    if (docsPath) {
+      console.log(`  Docs: ${docsPath}`);
+    }
+    if (shouldGitInit) {
+      console.log(`  Git: initialized`);
+    }
+    if (template.nextSteps && template.nextSteps.length > 0) {
+      console.log(`\nNext steps:`);
+      template.nextSteps.forEach((step, i) => {
+        console.log(`  ${i + 1}. ${step}`);
+      });
+    }
+  }
+}
+
 // ============================================================================
 // Help Documentation
 // ============================================================================
@@ -1088,6 +1232,7 @@ COMMANDS:
   scan <directory>               Auto-discover and add projects in a directory
   export-daemon                  Export projects in daemon format
   templates                      List available project templates
+  create <template> <name>       Create a new project from a template
 
   complete <name>                Mark project as completed
   pause <name>                   Mark project as paused
@@ -1098,10 +1243,13 @@ COMMANDS:
   version, --version, -v         Show version information
 
 OPTIONS:
-  --json                         Output as JSON (for list and templates commands)
+  --json                         Output as JSON (for list, templates, and create commands)
   --verbose, -v                  Show verbose output (for list command)
-  --docs <path>                  Specify docs directory (for add command)
+  --docs <path>                  Specify docs directory (for add and create commands)
   --visibility <value>           Filter by visibility (for export-daemon command)
+  --path <path>                  Specify project directory (for create command)
+  --git                          Initialize git repository (for create command)
+  --no-git                       Do not initialize git repository (for create command)
 
   --all                          Show all projects regardless of state
   --completed                    Show only completed projects
@@ -1272,6 +1420,28 @@ async function main() {
   const pausedFlag = args.includes("--paused");
   const archivedFlag = args.includes("--archived");
 
+  // Parse --git/--no-git flags
+  const gitFlagIndex = args.indexOf("--git");
+  const noGitFlagIndex = args.indexOf("--no-git");
+  let gitFlag: boolean | undefined;
+  if (gitFlagIndex !== -1) {
+    gitFlag = true;
+  } else if (noGitFlagIndex !== -1) {
+    gitFlag = false;
+  }
+
+  // Parse --path flag
+  const pathIndex = args.indexOf("--path");
+  let pathArg: string | undefined;
+  if (pathIndex !== -1 && args[pathIndex + 1]) {
+    pathArg = args[pathIndex + 1];
+  }
+  // Also handle --path=value syntax
+  const pathEqualsArg = args.find(a => a.startsWith("--path="));
+  if (pathEqualsArg) {
+    pathArg = pathEqualsArg.split("=")[1];
+  }
+
   // Validate mutually exclusive state flags
   const stateFlags = [completedFlag, pausedFlag, archivedFlag].filter(Boolean);
   if (stateFlags.length > 1) {
@@ -1441,6 +1611,15 @@ async function main() {
 
     case "templates":
       templatesCommand({ json: jsonFlag });
+      break;
+
+    case "create":
+      createProjectCommand(args[1], args[2], {
+        path: pathArg,
+        docs: docsPath,
+        git: gitFlag,
+        json: jsonFlag,
+      });
       break;
 
     default:
