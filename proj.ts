@@ -1217,7 +1217,7 @@ function templateInitCommand(templateName: string): void {
     "# {{name}}\n\nCreated on {{date}}\n"
   );
 
-  console.log(`Created template '${templateName}' at ${templateDir}`);
+  console.log(`✓ Created template '${templateName}' at ${templateDir}`);
   console.log("\nNext steps:");
   console.log(`  1. Edit ${join(templateDir, "template.json")}`);
   console.log(`  2. Add files to ${join(templateDir, "files")}`);
@@ -1359,7 +1359,7 @@ function createProjectCommand(
   if (options.json) {
     console.log(JSON.stringify({ success: true, project: newProject }, null, 2));
   } else {
-    console.log(`Created project '${projectName}' at ${projectPath}`);
+    console.log(`✓ Created project '${projectName}' at ${projectPath}`);
     if (docsPath) {
       console.log(`  Docs: ${docsPath}`);
     }
