@@ -56,6 +56,32 @@ export interface Template {
   nextSteps?: string[];
 }
 
+export interface TemplateVariables {
+  name: string;
+  location: string;
+  docs: string;
+  date: string;
+}
+
+/**
+ * Substitute template variables in a string
+ */
+export function substituteVariables(
+  content: string,
+  variables: Partial<TemplateVariables>
+): string {
+  let result = content;
+
+  for (const [key, value] of Object.entries(variables)) {
+    if (value !== undefined) {
+      const pattern = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+      result = result.replace(pattern, value);
+    }
+  }
+
+  return result;
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================

@@ -1,7 +1,7 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
 import { mkdirSync, writeFileSync } from "fs";
 import type { Template } from "../../proj";
-import { getTemplatesDir, getTemplateDir, listTemplates, loadTemplate } from "../../proj";
+import { getTemplatesDir, getTemplateDir, listTemplates, loadTemplate, substituteVariables } from "../../proj";
 import { createTestEnv } from "../helpers/test-utils";
 import { join } from "path";
 
@@ -184,5 +184,47 @@ describe("loadTemplate", () => {
     expect(template.docsLocation).toBe("~/Obsidian/{{name}}");
     expect(template.gitInit).toBe(true);
     expect(template.nextSteps).toEqual(["Step 1", "Step 2"]);
+  });
+});
+
+describe("substituteVariables", () => {
+  test("replaces {{name}} with project name", () => {
+    const result = substituteVariables("Hello {{name}}!", { name: "world" });
+    expect(result).toBe("Hello world!");
+  });
+
+  test("replaces multiple variables", () => {
+    const result = substituteVariables(
+      "Project: {{name}} at {{location}}",
+      { name: "my-app", location: "/home/user/my-app" }
+    );
+    expect(result).toBe("Project: my-app at /home/user/my-app");
+  });
+
+  test("replaces multiple occurrences of same variable", () => {
+    const result = substituteVariables(
+      "{{name}} is called {{name}}",
+      { name: "test" }
+    );
+    expect(result).toBe("test is called test");
+  });
+
+  test("leaves unknown variables unchanged", () => {
+    const result = substituteVariables("Hello {{unknown}}!", { name: "world" });
+    expect(result).toBe("Hello {{unknown}}!");
+  });
+
+  test("handles all standard variables", () => {
+    const vars = {
+      name: "my-project",
+      location: "/home/user/my-project",
+      docs: "/home/user/docs/my-project",
+      date: "2026-01-19",
+    };
+    const result = substituteVariables(
+      "# {{name}}\nPath: {{location}}\nDocs: {{docs}}\nCreated: {{date}}",
+      vars
+    );
+    expect(result).toBe("# my-project\nPath: /home/user/my-project\nDocs: /home/user/docs/my-project\nCreated: 2026-01-19");
   });
 });
