@@ -1446,6 +1446,21 @@ EXAMPLES:
   # Remove a project
   proj remove my-app
 
+  # List available templates
+  proj templates
+
+  # Create a project interactively
+  proj create
+
+  # Create a project from template
+  proj create typescript-cli my-app
+
+  # Create with custom path and docs
+  proj create typescript-cli my-app --path ~/projects/my-app --docs ~/Obsidian/my-app
+
+  # Create without git initialization
+  proj create typescript-cli my-app --no-git
+
 OUTPUT:
   - 'list' command outputs human-readable format by default, JSON with --json
   - 'path' command outputs the directory path to stdout
@@ -1457,6 +1472,21 @@ OUTPUT:
 CONFIGURATION:
   Projects are stored in: ~/.config/proj/projects.json
   This file is auto-generated and can be edited manually if needed.
+
+TEMPLATES:
+  Templates are stored in: ~/.config/proj/templates/
+  Each template is a directory containing:
+    template.json    Configuration file with name, description, nextSteps, etc.
+    files/           Directory of files to copy (supports {{name}}, {{date}} variables)
+
+  Example template.json:
+    {
+      "name": "TypeScript CLI",
+      "description": "Bun-based CLI application",
+      "docsLocation": "~/Obsidian/Projects/{{name}}",
+      "gitInit": true,
+      "nextSteps": ["Install dependencies", "Add commands"]
+    }
 
 SHELL INTEGRATION:
   For easier navigation, add these functions to your shell rc file (.bashrc, .zshrc):
